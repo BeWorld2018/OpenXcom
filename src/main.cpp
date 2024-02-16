@@ -24,6 +24,11 @@
 #include "Engine/Options.h"
 #include "Menu/StartState.h"
 
+#ifdef __MORPHOS__
+static const char *version __attribute__((used)) = "$VER: OpenXCom " OPENXCOM_VERSION_SHORT " (" __AMIGADATE__ ")";
+unsigned long __stack = 1024 * 1024;
+#endif
+
 /** @mainpage
  * @author OpenXcom Developers
  *
@@ -124,8 +129,3 @@ int main(int argc, char *argv[])
 	delete game;
 	return EXIT_SUCCESS;
 }
-
-
-#ifdef __MORPHOS__
-const char Version[] = "$VER: OpenXCom " OPENXCOM_VERSION_SHORT " (" __AMIGADATE__  ")";
-#endif

@@ -565,6 +565,8 @@ bool init(int argc, char *argv[])
 	Log(LOG_INFO) << "Platform: OSX";
 #elif  __ANDROID_API__
 	Log(LOG_INFO) << "Platform: Android";
+#elif defined(__MORPHOS__)
+	Log(LOG_INFO) << "Platform: MorphOS";
 #else
 	Log(LOG_INFO) << "Platform: Unix-like";
 #endif

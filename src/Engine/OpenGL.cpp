@@ -401,7 +401,7 @@ void OpenGL::init(int w, int h)
 	glErrorCheck();
 
     //bind shader functions
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__MORPHOS__)
 	glCreateProgram = (PFNGLCREATEPROGRAMPROC)glGetProcAddress("glCreateProgram");
 	glDeleteProgram = (PFNGLDELETEPROGRAMPROC)glGetProcAddress("glDeleteProgram");
 	glUseProgram = (PFNGLUSEPROGRAMPROC)glGetProcAddress("glUseProgram");

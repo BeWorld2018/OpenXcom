@@ -69,7 +69,11 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <pwd.h>
+#ifndef __MORPHOS__
 #include <execinfo.h>
+#else
+#include <proto/dos.h>
+#endif
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include "Unicode.h"
@@ -92,7 +96,7 @@ namespace CrossPlatform
  */
 void getErrorDialog()
 {
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__MORPHOS__)
 	if (system(NULL))
 	{
 		if (getenv("KDE_SESSION_UID") && system("which kdialog 2>&1 > /dev/null") == 0)
@@ -134,7 +138,7 @@ void showError(const std::string &error)
 	Log(LOG_FATAL) << error;
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__MORPHOS__)
 /**
  * Gets the user's home folder according to the system.
  * @return Absolute path to home folder.
@@ -161,8 +165,7 @@ std::vector<std::string> findDataFolders()
 	std::vector<std::string> list;
 #ifdef __MORPHOS__
 	list.push_back("PROGDIR:");
-	return list;
-#endif
+#else
 
 #ifdef _WIN32
 	char path[MAX_PATH];
@@ -255,7 +258,7 @@ std::vector<std::string> findDataFolders()
 	// Get working directory
 	list.push_back("./");
 #endif
-
+#endif
 	return list;
 }
 
@@ -270,8 +273,7 @@ std::vector<std::string> findUserFolders()
 
 #ifdef __MORPHOS__
 	list.push_back("PROGDIR:");
-	return list;
-#endif
+#else
 
 #ifdef _WIN32
 	char path[MAX_PATH];
@@ -330,6 +332,7 @@ std::vector<std::string> findUserFolders()
 	list.push_back("./user/");
 #endif
 
+#endif
 	return list;
 }
 
@@ -341,9 +344,7 @@ std::string findConfigFolder()
 {
 #ifdef __MORPHOS__
 	return "PROGDIR:";
-#endif
-
-#if defined(_WIN32) || defined(__APPLE__)
+#elif defined(_WIN32) || defined(__APPLE__)
 	return "";
 #elif defined (__HAIKU__)
 	char settings_path[B_PATH_NAME_LENGTH];
@@ -517,14 +518,36 @@ bool folderExists(const std::string &path)
 {
 #ifdef _WIN32
 	return (PathIsDirectoryA(path.c_str()) != FALSE);
-#elif __MORPHOS__
-	BPTR l = Lock( path.c_str(), SHARED_LOCK );
-	if ( l != NULL )
-	{
-		UnLock( l );
-		return 1;
+#elif defined(__MORPHOS__)
+#ifndef FIB_IS_FILE
+# define FIB_IS_FILE(FIB)	((FIB)->fib_DirEntryType < 0)
+#endif
+#ifndef FIB_IS_DRAWER
+# define FIB_IS_DRAWER(FIB)	((FIB)->fib_DirEntryType >= 0 && \
+				 (FIB)->fib_DirEntryType != ST_SOFTLINK)
+#endif
+
+	bool result = TRUE;
+	struct FileInfoBlock *fib_p = (struct FileInfoBlock *) AllocDosObject (DOS_FIB, NULL);
+	if (!fib_p){
+		return FALSE;
 	}
-	return 0;
+	
+	BPTR lock = Lock(path.c_str(), ACCESS_READ);
+
+    if (!lock || !Examine(lock, fib_p))
+    {
+		FreeDosObject(DOS_FIB, fib_p);
+		fib_p = NULL;
+		result = FALSE;
+    }
+
+    UnLock(lock);
+	if (fib_p) {
+		result = (FIB_IS_DRAWER(fib_p)) ? TRUE : FALSE;
+		FreeDosObject(DOS_FIB, fib_p);
+	}
+	return result;
 #else
 	struct stat info;
 	return (stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode));
@@ -545,9 +568,9 @@ bool fileExists(const std::string &path)
 	if ( l != NULL )
 	{
 		UnLock( l );
-		return 1;
+		return TRUE;
 	}
-	return 0;
+	return FALSE;
 #else
 	struct stat info;
 	return (stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode));
@@ -920,6 +943,7 @@ void setWindowIcon(int winResource, const std::string &)
 #else
 void setWindowIcon(int, const std::string &unixPath)
 {
+#ifndef __MORPHOS__
 	std::string utf8 = Unicode::convPathToUtf8(unixPath);
 	SDL_Surface *icon = IMG_Load(utf8.c_str());
 	if (icon != 0)
@@ -927,6 +951,7 @@ void setWindowIcon(int, const std::string &unixPath)
 		SDL_WM_SetIcon(icon, NULL);
 		SDL_FreeSurface(icon);
 	}
+#endif
 }
 #endif
 
@@ -1063,6 +1088,8 @@ void stackTrace(void *ctx)
 #else
 	Log(LOG_FATAL) << "Unfortunately, no stack trace information is available";
 #endif
+#elif __MORPHOS__
+	Log(LOG_FATAL) << "Unfortunately, no stack trace information is available";
 #elif __CYGWIN__
 	Log(LOG_FATAL) << "Unfortunately, no stack trace information is available";
 #else
@@ -1209,6 +1236,8 @@ bool openExplorer(const std::string &url)
 #elif __APPLE__
 	std::string cmd = "open \"" + url + "\"";
 	return (system(cmd.c_str()) == 0);
+#elif __MORPHOS__
+	return false;
 #else
 	std::string cmd = "xdg-open \"" + url + "\"";
 	return (system(cmd.c_str()) == 0);
@@ -1229,6 +1258,8 @@ std::string getExeFolder()
 		auto ret = Unicode::convWcToMb(dest) + "/";
 		return ret;
 	}
+#elif __MORPHOS__
+	return "PROGDIR:";
 #endif
 	return std::string();
 }
